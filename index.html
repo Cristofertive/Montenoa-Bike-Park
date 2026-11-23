@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Montenoa Bike Park - Mapa Offline</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1b4332" />
+
+  <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; }
+    #map { width: 100%; height: 100%; }
+
+    .maplibregl-ctrl-geolocate { display: none !important; }
+
+    .top-bar {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 10;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .park-title {
+      background: #1b4332; color: #fff; padding: 10px 14px;
+      border-radius: 10px; font-weight: 700; font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .btn {
+      background: #ffffff; color: #1b4332; border: none; padding: 10px 14px;
+      border-radius: 10px; font-weight: 700; font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4); cursor: pointer;
+    }
+
+    .legend {
+      position: absolute; top: 62px; left: 12px; z-index: 10;
+      background: rgba(255,255,255,0.92); padding: 7px 12px; border-radius: 10px;
+      font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      display: flex; gap: 12px; font-weight: 600;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    .route-card {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+      background: #fff; border-radius: 20px 20px 0 0; padding: 20px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+      transform: translateY(100%); transition: transform 0.3s ease;
+    }
+    .route-card.active { transform: translateY(0); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    .card-title { font-size: 20px; font-weight: 800; color: #111; margin-bottom: 4px; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; display: inline-block; margin-right: 6px; }
+    .tipo-badge { background: #333; color: #fff; }
+    .verde { background: #16a34a; }
+    .azul { background: #0284c7; }
+    .rojo { background: #dc2626; }
+    .negro { background: #111111; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .metric-box { background: #f4f6f5; padding: 10px 12px; border-radius: 12px; }
+    .metric-label { font-size: 11px; color: #555; text-transform: uppercase; font-weight: 600; }
+    .metric-value { font-size: 16px; font-weight: 700; color: #111; margin-top: 2px; }
+    .close-btn { background: none; border: none; font-size: 22px; color: #666; cursor: pointer; padding: 0 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="park-title">🚵 Montenoa Bike Park</div>
+    <button class="btn" id="gpsBtn">📍 Mi Ubicación</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#22c55e;"></i>Verde (Fácil)</span>
+    <span><i class="dot" style="background:#00b4d8;"></i>Azul (Intermedia)</span>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="route-card" id="routeCard">
+    <div class="card-header">
+      <div>
+        <div class="card-title" id="rName">Nombre de Ruta</div>
+        <span class="badge verde" id="rDiff">Verde</span>
+        <span class="badge tipo-badge" id="rTipo">Enduro</span>
+      </div>
+      <button class="close-btn" onclick="cerrarTarjeta()">✕</button>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-label">Distancia</div>
+        <div class="metric-value" id="rDist">0 m</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-label">Desnivel</div>
+        <div class="metric-value" id="rElev">0 m</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-label">Tiempo Estimado</div>
+        <div class="metric-value" id="rTime">0 min</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-label">Modalidad</div>
+        <div class="metric-value" id="rModalidad">-</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    let map;
+
+    async function iniciarApp() {
+      let usarMapaOffline = false;
+      try {
+        const check = await fetch('./mapa-base.pmtiles', { method: 'HEAD' });
+        if (check.ok) usarMapaOffline = true;
+      } catch (e) {}
+
+      const fuenteMapa = usarMapaOffline
+        ? { type: "raster", url: "pmtiles://mapa-base.pmtiles", tileSize: 256 }
+        : { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 };
+
+      map = new maplibregl.Map({
+        container: 'map',
+        center: [-72.995, 5.668],
+        zoom: 14,
+        style: {
+          version: 8,
+          sources: { base_source: fuenteMapa },
+          layers: [{ id: "base-map", type: "raster", source: "base_source" }]
+        }
+      });
+
+      const geolocate = new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true
+      });
+      map.addControl(geolocate);
+      document.getElementById('gpsBtn').onclick = () => geolocate.trigger();
+
+      map.on('load', async () => {
+        const archivosPrecargados = [
+          './rutas/rutas_finales.kmz',
+          './rutas/puntos_finales.kmz'
+        ];
+
+        const todasLasGeometrias = [];
+
+        for (const rutaUrl of archivosPrecargados) {
+          try {
+            const resp = await fetch(rutaUrl);
+            if (!resp.ok) continue;
+            const blob = await resp.blob();
+            const geojson = await leerKMZaGeoJSON(blob, rutaUrl);
+            if (geojson && geojson.features.length > 0) {
+              todasLasGeometrias.push(...geojson.features);
+              renderizarGeoJSON(geojson, rutaUrl);
+            }
+          } catch (err) {
+            console.warn("No se pudo precargar:", rutaUrl, err);
+          }
+        }
+
+        if (todasLasGeometrias.length > 0) {
+          const fc = turf.featureCollection(todasLasGeometrias);
+          map.fitBounds(turf.bbox(fc), { padding: 50 });
+        }
+      });
+    }
+
+    async function leerKMZaGeoJSON(fileOrBlob, nombreArchivo) {
+      let kmlText = "";
+      if (nombreArchivo.toLowerCase().endsWith('.kmz')) {
+        const zip = await JSZip.loadAsync(fileOrBlob);
+        const kmlFile = Object.keys(zip.files).find(n => n.toLowerCase().endsWith('.kml'));
+        kmlText = await zip.files[kmlFile].async("string");
+      } else {
+        kmlText = await fileOrBlob.text();
+      }
+      const parser = new DOMParser();
+      const kmlDom = parser.parseFromString(kmlText, "text/xml");
+      return toGeoJSON.kml(kmlDom);
+    }
+
+    function renderizarGeoJSON(geojson, prefijoId) {
+      geojson.features.forEach((feature, index) => {
+        if (!feature.geometry) return;
+        if (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString') {
+          const pista = procesarPistaIndividual(feature, `${prefijoId}-${index}`);
+          dibujarPistaEnMapa(pista);
+        } else if (feature.geometry.type === 'Point') {
+          dibujarPuntoEnMapa(feature);
+        }
+      });
+    }
+
+    function obtenerAtributo(props, posiblesNombres) {
+      if (!props) return null;
+      for (const key of Object.keys(props)) {
+        if (posiblesNombres.includes(key.toLowerCase())) return props[key];
+      }
+      if (props.description) {
+        const desc = typeof props.description === 'string' ? props.description : props.description.value || '';
+        for (const nombre of posiblesNombres) {
+          const regex = new RegExp(`<td>${nombre}<\\/td>\\s*<td>(.*?)<\\/td>`, 'i');
+          const match = desc.match(regex);
+          if (match && match[1]) return match[1].trim();
+        }
+      }
+      return null;
+    }
+
+    function procesarPistaIndividual(feature, uniqueId) {
+      const props = feature.properties || {};
+      const nombre = obtenerAtributo(props, ['nombre', 'name']) || 'Pista';
+      const tipo = obtenerAtributo(props, ['tipo', 'type']) || 'MTB';
+
+      let distMetrosRaw = obtenerAtributo(props, ['distancia', 'distance', 'shape_leng']);
+      let distMetros = distMetrosRaw ? parseFloat(String(distMetrosRaw).replace(',', '.')) : 0;
+      if (!distMetros || isNaN(distMetros)) distMetros = turf.length(feature, { units: 'meters' });
+
+      const codRaw = (obtenerAtributo(props, ['cod', 'color', 'dificultad']) || '').toLowerCase();
+      let colorHex = '#22c55e', claseCss = 'verde', etiquetaDificultad = 'Verde · Fácil';
+
+      if (codRaw.includes('azul') || codRaw.includes('blue')) {
+        colorHex = '#00b4d8'; claseCss = 'azul'; etiquetaDificultad = 'Azul · Intermedia';
+      } else if (codRaw.includes('rojo') || codRaw.includes('red')) {
+        colorHex = '#ef4444'; claseCss = 'rojo'; etiquetaDificultad = 'Roja · Difícil';
+      } else if (codRaw.includes('negro') || codRaw.includes('black')) {
+        colorHex = '#111111'; claseCss = 'negro'; etiquetaDificultad = 'Negra · Experto';
+      }
+
+      let desnivelSubida = 0, desnivelBajada = 0;
+      const coords = feature.geometry.type === 'LineString' ? feature.geometry.coordinates : feature.geometry.coordinates.flat();
+      for (let i = 1; i < coords.length; i++) {
+        const diff = (coords[i][2] || 0) - (coords[i - 1][2] || 0);
+        if (diff > 0) desnivelSubida += diff;
+        else desnivelBajada += Math.abs(diff);
+      }
+
+      const desnivelTexto = (desnivelSubida > 0 || desnivelBajada > 0)
+        ? `+${Math.round(desnivelSubida)}m / -${Math.round(desnivelBajada)}m`
+        : 'Sin datos Z';
+
+      const velocidadKmh = tipo.toLowerCase().includes('downhill') ? 18 : 10;
+      const minutosEst = Math.max(1, Math.round(((distMetros / 1000) / velocidadKmh) * 60));
+
+      return {
+        id: uniqueId,
+        nombre,
+        tipo,
+        distancia: distMetros >= 1000
+          ? `${(distMetros / 1000).toFixed(2)} km (${Math.round(distMetros)} m)`
+          : `${Math.round(distMetros)} m`,
+        desnivel: desnivelTexto,
+        tiempo: `${minutosEst} min`,
+        dificultad: etiquetaDificultad,
+        claseCss,
+        colorHex,
+        geojson: feature
+      };
+    }
+
+    function dibujarPistaEnMapa(pista) {
+      const sourceId = `pista-${pista.id}`;
+      if (map.getSource(sourceId)) return;
+
+      map.addSource(sourceId, { type: 'geojson', data: pista.geojson });
+      map.addLayer({
+        id: `${sourceId}-borde`,
+        type: 'line',
+        source: sourceId,
+        paint: { 'line-color': '#000000', 'line-width': 7, 'line-opacity': 0.5 }
+      });
+      map.addLayer({
+        id: sourceId,
+        type: 'line',
+        source: sourceId,
+        paint: { 'line-color': pista.colorHex, 'line-width': 4.5 }
+      });
+
+      map.on('click', sourceId, () => {
+        document.getElementById('rName').innerText = pista.nombre;
+        document.getElementById('rDist').innerText = pista.distancia;
+        document.getElementById('rElev').innerText = pista.desnivel;
+        document.getElementById('rTime').innerText = pista.tiempo;
+        document.getElementById('rModalidad').innerText = pista.tipo;
+
+        const badgeDiff = document.getElementById('rDiff');
+        badgeDiff.innerText = pista.dificultad;
+        badgeDiff.className = `badge ${pista.claseCss}`;
+
+        document.getElementById('rTipo').innerText = pista.tipo;
+        document.getElementById('routeCard').classList.add('active');
+      });
+
+      map.on('mouseenter', sourceId, () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', sourceId, () => map.getCanvas().style.cursor = '');
+    }
+
+    function dibujarPuntoEnMapa(feature) {
+      const nombrePunto = obtenerAtributo(feature.properties, ['nombre', 'name']) || '';
+      if (!nombrePunto) return;
+      const el = document.createElement('div');
+      el.style.cssText = 'background:#fff; color:#111; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:700; border:1.5px solid #111; box-shadow:0 2px 4px rgba(0,0,0,0.4);';
+      el.innerText = nombrePunto;
+
+      new maplibregl.Marker({ element: el })
+        .setLngLat(feature.geometry.coordinates.slice(0, 2))
+        .addTo(map);
+    }
+
+    function cerrarTarjeta() {
+      document.getElementById('routeCard').classList.remove('active');
+    }
+
+    iniciarApp();
+  </script>
+</body>
+</html>
