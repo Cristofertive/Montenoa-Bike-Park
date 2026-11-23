@@ -5,9 +5,7 @@ const ARCHIVOS_OFFLINE = [
   './manifest.json',
   './rutas/rutas_finales.kmz',
   './rutas/puntos_finales.kmz',
-  './tiles: [
-  'https://cristofertive.github.io/Montenoa-Bike-Park/tiles/{z}/{x}/{y}.pbf'
-',
+  './tiles: https://huggingface.co/datasets/Cristofertive/Montenoa/resolve/main/mapa-base.pmtiles',
   'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css',
   'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js',
   'https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js',
