@@ -1,4 +1,4 @@
-const CACHE_NAME = 'montenoa-offline-v2';
+const CACHE_NAME = 'montenoa-offline-v3';
 
 // Rutas relativas a tu repositorio en GitHub Pages
 const PMTILES_URL = '/Montenoa-Bike-Park/mapa-base.pmtiles';
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   '/Montenoa-Bike-Park/',
   '/Montenoa-Bike-Park/index.html',
   '/Montenoa-Bike-Park/manifest.json',
+  '/Montenoa-Bike-Park/Logo.png',
   PMTILES_URL
 ];
 
