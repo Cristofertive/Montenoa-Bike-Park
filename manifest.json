@@ -3,14 +3,14 @@
   "short_name": "Montenoa",
   "start_url": "/Montenoa-Bike-Park/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#1b4332",
-  "theme_color": "#1b4332",
+  "background_color": "#1a1a1a",
+  "theme_color": "#165b33",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "Logo.png",
+      "purpose": "any maskable"
     }
   ]
 }
