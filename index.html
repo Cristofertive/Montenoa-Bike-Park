@@ -16,6 +16,80 @@
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
   <style>
+    /* Pantalla de presentación */
+#splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(circle at center, #1b3022 0%, #0a0f0c 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  text-align: center;
+  padding: 24px;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+#splash-screen.oculto {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash-logo {
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(46, 125, 50, 0.35);
+  animation: pulsoSuave 2.2s infinite ease-in-out;
+  margin-bottom: 24px;
+}
+
+.splash-titulo {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  color: #f4f7f5;
+}
+
+.splash-subtitulo {
+  font-size: 0.9rem;
+  color: #a3c4ad;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+
+.splash-loader {
+  width: 160px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.splash-loader-bar {
+  width: 50%;
+  height: 100%;
+  background: #4caf50;
+  border-radius: 4px;
+  animation: cargando 1.2s infinite ease-in-out;
+}
+
+@keyframes pulsoSuave {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@keyframes cargando {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
+}
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body, html { width: 100%; height: 100%; overflow: hidden; background: #1a1a1a; }
     #map { width: 100%; height: 100%; }
