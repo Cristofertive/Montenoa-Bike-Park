@@ -3,7 +3,7 @@
   "short_name": "Montenoa",
   "start_url": "/Montenoa-Bike-Park/",
   "display": "standalone",
-  "background_color": "#1a1a1a",
+  "background_color": "#000000",
   "theme_color": "#165b33",
   "icons": [
     {
