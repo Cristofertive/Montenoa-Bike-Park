@@ -224,7 +224,12 @@
           layers: [{ id: "base-map", type: "raster", source: "base_source" }]
         }
       });
-
+map.on('load', () => {
+  setTimeout(() => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) splash.classList.add('oculto');
+  }, 1200); // Muestra la presentación al menos 1.2 segundos antes de revelar el mapa
+});
       const geolocate = new maplibregl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true
